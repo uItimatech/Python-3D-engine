@@ -1,21 +1,37 @@
-'''---------------------------------
-        3D rendering engine
-------------------------------------
+'''-------------------------------------------
+              3D RENDERING ENGINE
+----------------------------------------------
+Simple 3D renderer made from scratch.
 
 Created by ultimatech
 First update: 13/03/2021 14:46
 Last update: 19/03/2022 18:12
+Version: Beta 0.1.3
 
-             2022
----------------------------------'''
+                    2022
+-------------------------------------------'''
+
+
+# ------------ Import libraries --------------
 
 from random import randint
-from textwrap import fill
-from graphics import *
 from math import *
-import keyboard
-from pygame import Vector2
 from time import sleep
+from os import system
+
+try:
+    from graphics import *
+except ImportError:
+    system('python -m pip install graphics.py')
+    from graphics import *
+try:
+    import keyboard
+except ImportError:
+    system('python -m pip install keyboard')
+    import keyboard
+
+
+# ----------- Initialize variables -----------
 
 player_x = float()
 player_y = float()
