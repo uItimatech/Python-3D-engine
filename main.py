@@ -118,21 +118,22 @@ def rgb(red, green, blue):
     return hexValue
 
 
-def multiplyMatrix(a, b):
+def multiplyMatrix(matrix1, matrix2):
 
-    a_rows = len(a)
-    a_cols = len(a[0])
+    matrix1_rows = len(matrix1)
+    matrix1_columns = len(matrix1[0])
 
-    b_rows = len(b)
-    b_cols = len(b[0])
-    # Dot product matrix dimentions = a_rows x b_cols
-    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
+    matrix2_rows = len(matrix2)
+    matrix2_columns = len(matrix2[0])
+    
+    # Dot product matrix dimentions = matrix1_rows x b_columns
+    product = [[0 for i in range(matrix2_columns)] for j in range(matrix1_rows)]
 
-    if a_cols == b_rows:
-        for i in range(a_rows):
-            for j in range(b_cols):
-                for k in range(b_rows):
-                    product[i][j] += a[i][k] * b[k][j]
+    if matrix1_columns == matrix2_rows:
+        for i in range(matrix1_rows):
+            for j in range(matrix2_columns):
+                for k in range(matrix2_rows):
+                    product[i][j] += matrix1[i][k] * matrix2[k][j]
     else:
         print("INCOMPATIBLE MATRIX SIZES")
 
@@ -184,29 +185,42 @@ def getPoint(x, y, z):
         dirX = atan(dz / dx)
         dirY = atan(dy / dx)
     except:
-        dirX = atan(dz)
-        dirY = atan(dy)
+        dirX = 0
+        dirY = 0
 
-    dirX = dirX - player.dir.vertical
-    dirY = dirY - player.dir.horizontal
+    #dirX = (dirX - player.dir.vertical +1)*180
+    #dirY = (dirY - player.dir.horizontal +1)*180
 
-    #pX = (dirX * window.width)/360
-    #pY = (dirY * window.height)/360
+    dirX = (dirX - player.dir.vertical)
+    dirY = (dirY - player.dir.horizontal)
+
+    '''if dirX > 360:
+        dirX -= 360
+    if dirX < 0:
+        dirX += 360'''
+
+    print(dirX, dirY)
 
     if renderDebug.get("orthographic") == False:
+
+        #pointX = dirX *(window.width*360/FOV.horizontal)/360
+        #pointY = dirY *(window.height*360/FOV.vertical)/360
+
         pointX = dirX * (window.width * 360 / FOV.horizontal) / 360 * 2*FOV.horizontal
         pointY = dirY * (window.height * 360 / FOV.vertical) / 360 * 2*FOV.vertical
 
     elif renderDebug.get("orthographic") == True:
-        rotate_x = multiplyMatrix(rotation_matrix, [[dy], [dx], [dz]])
+        rotate_x = multiplyMatrix(rotation_matrix, [[dy/2], [dx/2], [dz/2]])
         rotate_y = multiplyMatrix(rotation_matrix, rotate_x)
         rotate_z = multiplyMatrix(rotation_matrix, rotate_y)
         point_2d = multiplyMatrix(projection_matrix, rotate_z)
     
-        pointX = (point_2d[0][0] * 10) + window.width/2
-        pointY = (point_2d[1][0] * 10) + window.height/2
+        pointX = (point_2d[0][0] * 10) #- window.width/2
+        pointY = (point_2d[1][0] * 10) #- window.height/2
 
     point = Point(pointX, pointY)
+
+    distance = sqrt((dx)**2 + (dy)**2 + (dz)**2)
 
     return ((point, x, y, z), distance, dirX, dirY)
 
@@ -379,19 +393,19 @@ while True:
 
     if keyboard.is_pressed('left_arrow'):
 
-        player.dir.vertical += 0.2
+        player.dir.vertical -= 0.2
 
     if keyboard.is_pressed('right_arrow'):
 
-        player.dir.vertical -= 0.2
+        player.dir.vertical += 0.2
 
     if keyboard.is_pressed('up_arrow'):
 
-        player.dir.horizontal -= 0.2
+        player.dir.horizontal += 0.2
 
     if keyboard.is_pressed('down_arrow'):
 
-        player.dir.horizontal += 0.2
+        player.dir.horizontal -= 0.2
 
     if keyboard.is_pressed('&'):
         if not(renderDebug.get("wireframe")):
@@ -417,14 +431,19 @@ while True:
         while keyboard.is_pressed('"'):
             sleep(0.1)
 
-    if player.dir.vertical < 0:
+    if keyboard.is_pressed("'"):
+        if not(renderDebug.get("orthographic")):
+            renderDebug["orthographic"] = True
+        else:
+            renderDebug["orthographic"] = False
+        while keyboard.is_pressed("'"):
+            sleep(0.1)
 
-        player.dir.vertical = player.dir.vertical + 360
+    if player.dir.vertical < 0:
+        player.dir.vertical += 360
 
     if player.dir.vertical > 360:
-
-        player.dir.vertical = player.dir.vertical - 360
+        player.dir.vertical -= 360
 
     if keyboard.is_pressed('esc'):
-
         window.close()
