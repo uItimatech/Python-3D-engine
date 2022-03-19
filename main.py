@@ -16,6 +16,7 @@ Version: Beta 0.1.3
 
 from time import time, sleep 
 from os import system
+from turtle import window_width
 from win32api import EnumDisplayDevices, EnumDisplaySettings
 
 from random import randint
@@ -77,12 +78,21 @@ renderDebug = dict({
     "wireframe": True,
     "faceNormals": True,
     "faces": False,
-    "orthographic": True
+    "orthographic": False
 })
 
 
 #color_index = [randint(0,255) for i in range(12)]
 color_index = [(255, 0, 0), (255, 0, 0), (0, 255, 0), (0, 255, 0), (0, 0, 255), (0, 0, 255), (128, 128, 0), (128, 128, 0), (128, 0, 128), (128, 0, 128), (0, 128, 128), (0, 128, 128)]
+
+
+projection_matrix = [[1,0,0],
+                     [0,1,0],
+                     [0,0,1 ]]
+
+rotation_matrix = [[0,0,1],
+                   [0,1,0],
+                   [1,0,0]]
 
 
 
@@ -108,6 +118,27 @@ def rgb(red, green, blue):
     return hexValue
 
 
+def multiplyMatrix(a, b):
+
+    a_rows = len(a)
+    a_cols = len(a[0])
+
+    b_rows = len(b)
+    b_cols = len(b[0])
+    # Dot product matrix dimentions = a_rows x b_cols
+    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
+
+    if a_cols == b_rows:
+        for i in range(a_rows):
+            for j in range(b_cols):
+                for k in range(b_rows):
+                    product[i][j] += a[i][k] * b[k][j]
+    else:
+        print("INCOMPATIBLE MATRIX SIZES")
+
+    return product     
+
+
 def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add x, y, z and rotation parameters
 
     pointArray = []
@@ -123,20 +154,21 @@ def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add 
 
     cubeFaces = []
 
-    cubeFaces.append(drawTriangle(pointArray[0], pointArray[3], pointArray[2], 0))
-    cubeFaces.append(drawTriangle(pointArray[0], pointArray[1], pointArray[3], 1))
-    cubeFaces.append(drawTriangle(pointArray[6], pointArray[5], pointArray[4], 2))
-    cubeFaces.append(drawTriangle(pointArray[6], pointArray[7], pointArray[5], 3))
-    cubeFaces.append(drawTriangle(pointArray[2], pointArray[4], pointArray[0], 4))
-    cubeFaces.append(drawTriangle(pointArray[2], pointArray[6], pointArray[4], 5))
-    cubeFaces.append(drawTriangle(pointArray[1], pointArray[5], pointArray[7], 6))
-    cubeFaces.append(drawTriangle(pointArray[1], pointArray[7], pointArray[3], 7))
-    cubeFaces.append(drawTriangle(pointArray[4], pointArray[5], pointArray[1], 8))
-    cubeFaces.append(drawTriangle(pointArray[4], pointArray[1], pointArray[0], 9))
-    cubeFaces.append(drawTriangle(pointArray[2], pointArray[7], pointArray[6], 10))
-    cubeFaces.append(drawTriangle(pointArray[2], pointArray[3], pointArray[7], 11))
+    cubeFaces.append(getTriangle(pointArray[0], pointArray[3], pointArray[2], 0))
+    cubeFaces.append(getTriangle(pointArray[0], pointArray[1], pointArray[3], 1))
+    cubeFaces.append(getTriangle(pointArray[6], pointArray[5], pointArray[4], 2))
+    cubeFaces.append(getTriangle(pointArray[6], pointArray[7], pointArray[5], 3))
+    cubeFaces.append(getTriangle(pointArray[2], pointArray[4], pointArray[0], 4))
+    cubeFaces.append(getTriangle(pointArray[2], pointArray[6], pointArray[4], 5))
+    cubeFaces.append(getTriangle(pointArray[1], pointArray[5], pointArray[7], 6))
+    cubeFaces.append(getTriangle(pointArray[1], pointArray[7], pointArray[3], 7))
+    cubeFaces.append(getTriangle(pointArray[4], pointArray[5], pointArray[1], 8))
+    cubeFaces.append(getTriangle(pointArray[4], pointArray[1], pointArray[0], 9))
+    cubeFaces.append(getTriangle(pointArray[2], pointArray[7], pointArray[6], 10))
+    cubeFaces.append(getTriangle(pointArray[2], pointArray[3], pointArray[7], 11))
 
     return cubeFaces
+
 
 
 def getPoint(x, y, z):
@@ -161,15 +193,25 @@ def getPoint(x, y, z):
     #pX = (dirX * window.width)/360
     #pY = (dirY * window.height)/360
 
-    pX = dirX * (window.width * 360 / FOV.horizontal) / 360 * 2*FOV.horizontal
-    pY = dirY * (window.height * 360 / FOV.vertical) / 360 * 2*FOV.vertical
+    if renderDebug.get("orthographic") == False:
+        pointX = dirX * (window.width * 360 / FOV.horizontal) / 360 * 2*FOV.horizontal
+        pointY = dirY * (window.height * 360 / FOV.vertical) / 360 * 2*FOV.vertical
 
-    point = Point(pX, pY)
+    elif renderDebug.get("orthographic") == True:
+        rotate_x = multiplyMatrix(rotation_matrix, [[dy], [dx], [dz]])
+        rotate_y = multiplyMatrix(rotation_matrix, rotate_x)
+        rotate_z = multiplyMatrix(rotation_matrix, rotate_y)
+        point_2d = multiplyMatrix(projection_matrix, rotate_z)
+    
+        pointX = (point_2d[0][0] * 10) + window.width/2
+        pointY = (point_2d[1][0] * 10) + window.height/2
+
+    point = Point(pointX, pointY)
 
     return ((point, x, y, z), distance, dirX, dirY)
 
 
-def drawTriangle(point1, point2, point3, id):
+def getTriangle(point1, point2, point3, id):
 
     Vertices = [point1[0], point2[0], point3[0]]
 
@@ -209,7 +251,7 @@ def drawTriangle(point1, point2, point3, id):
         normalVector.draw(window)
         gravityCenter.draw(window)
 
-    return (Triangle, distance)
+    return (Triangle, distance) 
 
 
 def clear():
@@ -238,7 +280,7 @@ def render():
     faceArray.append(drawCube(50, 50, 50, 50, 50, 50))
 
     faceArray = [currentFace for currentFaces in range(len(faceArray)) for currentFace in faceArray[currentFaces]]
-    print(str(faceArray[0])+"\n")
+
 
     def distanceKey(face):
         return face[1]
@@ -248,9 +290,6 @@ def render():
     for currentFace in faceArray:
         if renderDebug.get("faces") == True or renderDebug.get("wireframe") == True: 
             currentFace[0].draw(window)
-
-
-
 
 
     origin = Point(0, 0)
