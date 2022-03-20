@@ -6,7 +6,7 @@ Simple python 3D renderer made from scratch.
 Created by ultimatech
 First update: 13/03/2021 14:46
 Last update: 20/03/2022 12:23
-Version: Beta 0.1.4
+Version: Beta 0.1.5
 
                     2022
 -------------------------------------------'''
@@ -16,7 +16,7 @@ Version: Beta 0.1.4
 
 # ------------ Import libraries --------------
 
-from time import time, sleep 
+from time import time, sleep
 from os import system
 from turtle import window_width
 from win32api import EnumDisplayDevices, EnumDisplaySettings
@@ -36,12 +36,14 @@ except ImportError:
     from graphics import *
 
 
+
 # Cuda rendering
 try:
-    from numba import jit, cuda
+    from numba import jit, cuda, timeit
 except ImportError:
     system('python -m pip install numba')
     from numba import jit, cuda
+
 
 
 # Keyboard support
@@ -67,11 +69,13 @@ class player:
         horizontal = float
 
 
+
 class window:
     width = 1024
     height = 1024
     vertical_resolution = 256
     horizontal_resolution = 256
+
 
 
 class FOV:
@@ -80,6 +84,7 @@ class FOV:
 
 start_clock_time = time.time()
 last_clock_time = 0
+
 
 
 class FPS:
@@ -97,18 +102,25 @@ class FPS:
     lastValue = maxValue
 
 
+
+# Sets render settings
 renderDebug = dict({
     "wireframe": True,
     "faceNormals": False,
     "faces": False,
     "vertices": True,
     "orthographic": False,
-    "cudaRendering": False
+    "cudaRendering": False,
+    "coordinates": False,
+    "FPSCounter": True
 })
+
+
 
 # Uses CUDA GPU if available
 if "NVIDIA" or "Nvidia" in EnumDisplayDevices().DeviceString:
     renderDebug["cudaRendering"] = True
+
 
 
 # Color index for debug face color
@@ -116,23 +128,25 @@ color_index = [(255, 0, 0), (235, 0, 0), (0, 255, 0), (0, 235, 0), (0, 0, 255), 
 #color_index = [randint(0,255) for i in range(12)]
 
 
+
 # Setup projection matrixes
 projection_matrix = [[1,0,0],
                      [0,1,0],
                      [0,0,1 ]]
+
 
 rotation_matrix = [[0,0,1],
                    [0,1,0],
                    [1,0,0]]
 
 
-
+# Setups render window
 window = GraphWin('Render', window.width, window.height, autoflush=False)
 window.setCoords(-window.width, -window.height, window.width, window.height)
 
 
 
-
+# Resets camera position
 def resetCoords():
 
     global player
@@ -146,14 +160,14 @@ def resetCoords():
 
 
 
-
+# Used to converts rgb values into hex
 def rgb(red, green, blue):
     hexValue = '#%02x%02x%02x' % (red, green, blue)
     return hexValue
 
 
 
-
+# Used to multiply projection matrixes
 def multiplyMatrix(matrix1, matrix2):
 
     matrix1_rows = len(matrix1)
@@ -177,8 +191,8 @@ def multiplyMatrix(matrix1, matrix2):
 
 
 
-
-def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add x, y, z and rotation parameters
+# Returns an array of points and faces representing a cube
+def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *Rotation):  # Add x, y, z position, size and rotation parameters
 
     pointArray = []
 
@@ -210,8 +224,8 @@ def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add 
 
 
 
-
-def getPoint(x, y, z):
+# Returns the projection of a 3D point in space onto the camera plane
+def getPoint(x, y, z): # Will later support multiple cameras
 
     dx = x - player.x
     dy = y - player.y
@@ -266,7 +280,7 @@ def getPoint(x, y, z):
 
 
 
-
+# Returns a triangle object for rendering
 def getTriangle(point1, point2, point3, id):
 
     Vertices = [point1[0], point2[0], point3[0]]
@@ -311,7 +325,8 @@ def getTriangle(point1, point2, point3, id):
 
 
 
-@jit
+# Clears the window
+@jit 
 def clear():
     # Undraws all faces for next frame
     for item in window.items[:]:
@@ -319,7 +334,7 @@ def clear():
 
 
 
-
+# Renders visible elements
 def render():
 
     # FPS clock
@@ -368,12 +383,14 @@ def render():
 
 
 
-
+    # Draws origin
     origin = Point(0, 0)
     origin = Circle(origin, 3)
     origin.setFill(color_rgb(255, 0, 0))
     origin.draw(window)
 
+
+    # Sets and displays current FPS
     if FPS.timer > 1:
         FPS.lastValue = FPS.value
         FPS.value = 0
@@ -389,34 +406,44 @@ def render():
         FPS.counter.setTextColor("green")
 
     FPS.counter.draw(window)
-    infos = str("(" + str(round(player.x, 3)) + ";" +
-                str(round(player.y, 3)) + ";" + str(round(player.z, 3)) + ")")
-    posDisplay = Text(Point(0, -window.width+70), infos)
-    posDisplay.draw(window)
 
-    infos = str("(" + str(player.dir.vertical) + ";" + str(player.dir.horizontal) + ")")
-    dirDisplay = Text(Point(0, (-window.width)+30), infos)
-    dirDisplay.draw(window)
+
+    # Displays camera coordinates
+    if renderDebug.get("coordinates") == True: 
+        infos = str("(" + str(round(player.x, 3)) + ";" +
+                    str(round(player.y, 3)) + ";" + str(round(player.z, 3)) + ")")
+        posDisplay = Text(Point(0, -window.width+70), infos)
+        posDisplay.draw(window)
+
+        infos = str("(" + str(player.dir.vertical) + ";" + str(player.dir.horizontal) + ")")
+        dirDisplay = Text(Point(0, (-window.width)+30), infos)
+        dirDisplay.draw(window)
 
 
 
 
 # ------------ Render and keybinds -----------
 
+# Resets camera position
 resetCoords()
 
+
+# Main loop
 while True:
 
+    # Render frames
     clock_time = time.time() - start_clock_time
-
     render()
-
     update(FPS.maxValue*1.05)
+
 
 
     # Prevents FPS from affecting inputs
     inputSpeed = 1.0 / ((FPS.lastValue+0.01) / 120)
 
+
+
+    # Keyboard inputs
     '''if keyboard.is_pressed('s')f:
 
         player.x = player.x - (sin(player.dir.vertical))/360
