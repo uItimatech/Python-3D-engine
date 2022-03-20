@@ -1,15 +1,17 @@
 '''-------------------------------------------
               3D RENDERING ENGINE
 ----------------------------------------------
-Simple 3D renderer made from scratch.
+Simple python 3D renderer made from scratch.
 
 Created by ultimatech
 First update: 13/03/2021 14:46
-Last update: 19/03/2022 18:12
-Version: Beta 0.1.3
+Last update: 20/03/2022 12:23
+Version: Beta 0.1.4
 
                     2022
 -------------------------------------------'''
+
+
 
 
 # ------------ Import libraries --------------
@@ -22,19 +24,34 @@ from win32api import EnumDisplayDevices, EnumDisplaySettings
 from random import randint
 from math import *
 
-import numpy as np
+
 
 # Downloads the missing required modules 
+
+# 2D graphics module
 try:
     from graphics import *
 except ImportError:
     system('python -m pip install graphics.py')
     from graphics import *
+
+
+# Cuda rendering
+try:
+    from numba import jit, cuda
+except ImportError:
+    system('python -m pip install numba')
+    from numba import jit, cuda
+
+
+# Keyboard support
 try:
     import keyboard
 except ImportError:
     system('python -m pip install keyboard')
     import keyboard
+
+
 
 
 # ----------- Initialize variables -----------
@@ -49,11 +66,13 @@ class player:
         vertical = float
         horizontal = float
 
+
 class window:
     width = 1024
     height = 1024
     vertical_resolution = 256
     horizontal_resolution = 256
+
 
 class FOV:
     horizontal = 90
@@ -62,30 +81,41 @@ class FOV:
 start_clock_time = time.time()
 last_clock_time = 0
 
+
 class FPS:
-    value = float()
-    lastValue = float()
-    maxValue = 'auto'      # Leave "none" for benchmarking
+    value = int()
+    maxValue = 'none'     # Leave 'none' for benchmarking
     timer = 0
     counter = object
+
 
     if maxValue == 0 or maxValue == 'none':
         maxValue = 999
     elif maxValue == 'auto':
         maxValue = getattr(EnumDisplaySettings(EnumDisplayDevices().DeviceName, -1), 'DisplayFrequency')
+    
+    lastValue = maxValue
+
 
 renderDebug = dict({
     "wireframe": True,
     "faceNormals": True,
     "faces": False,
-    "orthographic": False
+    "orthographic": False,
+    "cudaRendering": False
 })
 
+# Uses CUDA GPU if available
+if "NVIDIA" or "Nvidia" in EnumDisplayDevices().DeviceString:
+    renderDebug["cudaRendering"] = True
 
-#color_index = [randint(0,255) for i in range(12)]
+
+# Color index for debug face color
 color_index = [(255, 0, 0), (255, 0, 0), (0, 255, 0), (0, 255, 0), (0, 0, 255), (0, 0, 255), (128, 128, 0), (128, 128, 0), (128, 0, 128), (128, 0, 128), (0, 128, 128), (0, 128, 128)]
+#color_index = [randint(0,255) for i in range(12)]
 
 
+# Setup projection matrixes
 projection_matrix = [[1,0,0],
                      [0,1,0],
                      [0,0,1 ]]
@@ -98,7 +128,8 @@ rotation_matrix = [[0,0,1],
 
 window = GraphWin('Render', window.width, window.height, autoflush=False)
 window.setCoords(-window.width, -window.height, window.width, window.height)
-#window.master.geometry('%dx%d+%d+%d' % (0, 0, 0, 0))
+
+
 
 
 def resetCoords():
@@ -113,9 +144,13 @@ def resetCoords():
     player.dir.horizontal = 0
 
 
+
+
 def rgb(red, green, blue):
     hexValue = '#%02x%02x%02x' % (red, green, blue)
     return hexValue
+
+
 
 
 def multiplyMatrix(matrix1, matrix2):
@@ -138,6 +173,8 @@ def multiplyMatrix(matrix1, matrix2):
         print("INCOMPATIBLE MATRIX SIZES")
 
     return product     
+
+
 
 
 def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add x, y, z and rotation parameters
@@ -172,6 +209,7 @@ def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add 
 
 
 
+
 def getPoint(x, y, z):
 
     dx = x - player.x
@@ -199,7 +237,7 @@ def getPoint(x, y, z):
     if dirX < 0:
         dirX += 360'''
 
-    print(dirX, dirY)
+    #print(dirX, dirY)
 
     if renderDebug.get("orthographic") == False:
 
@@ -223,6 +261,8 @@ def getPoint(x, y, z):
     distance = sqrt((dx)**2 + (dy)**2 + (dz)**2)
 
     return ((point, x, y, z), distance, dirX, dirY)
+
+
 
 
 def getTriangle(point1, point2, point3, id):
@@ -268,10 +308,14 @@ def getTriangle(point1, point2, point3, id):
     return (Triangle, distance) 
 
 
+
+
 def clear():
     # Undraws all faces for next frame
     for item in window.items[:]:
         item.undraw()
+
+
 
 
 def render():
@@ -328,11 +372,11 @@ def render():
     FPS.counter.draw(window)
     infos = str("(" + str(round(player.x, 3)) + ";" +
                 str(round(player.y, 3)) + ";" + str(round(player.z, 3)) + ")")
-    posDisplay = Text(Point(0, -window.width/4), infos)
+    posDisplay = Text(Point(0, -window.width+70), infos)
     posDisplay.draw(window)
 
     infos = str("(" + str(player.dir.vertical) + ";" + str(player.dir.horizontal) + ")")
-    dirDisplay = Text(Point(0, (-window.width/4)-30), infos)
+    dirDisplay = Text(Point(0, (-window.width)+30), infos)
     dirDisplay.draw(window)
 
 
@@ -347,9 +391,14 @@ while True:
     clock_time = time.time() - start_clock_time
 
     render()
-    update(FPS.maxValue*1.1)
 
-    '''if keyboard.is_pressed('s'):
+    update(FPS.maxValue*1.05)
+
+
+    # Prevents FPS from affecting inputs
+    inputSpeed = 1.0 / ((FPS.lastValue+0.01) / 120)
+
+    '''if keyboard.is_pressed('s')f:
 
         player.x = player.x - (sin(player.dir.vertical))/360
         player.z = player.z - (cos(player.dir.vertical))/360
@@ -369,43 +418,43 @@ while True:
     
     if keyboard.is_pressed('s'):
 
-        player.x -= 1
+        player.x -= inputSpeed
 
     if keyboard.is_pressed('z'):
 
-        player.x += 1
+        player.x += inputSpeed
 
     if keyboard.is_pressed('space'):
 
-        player.y += 1
+        player.y += inputSpeed
 
     if keyboard.is_pressed('shift'):
 
-        player.y -= 1
+        player.y -= inputSpeed
 
     if keyboard.is_pressed('d'):
 
-        player.z += 1
+        player.z += inputSpeed
 
     if keyboard.is_pressed('q'):
 
-        player.z -= 1
+        player.z -= inputSpeed
 
     if keyboard.is_pressed('left_arrow'):
 
-        player.dir.vertical -= 0.2
+        player.dir.vertical -= inputSpeed / 4
 
     if keyboard.is_pressed('right_arrow'):
 
-        player.dir.vertical += 0.2
+        player.dir.vertical += inputSpeed / 4
 
     if keyboard.is_pressed('up_arrow'):
 
-        player.dir.horizontal += 0.2
+        player.dir.horizontal += inputSpeed / 4
 
     if keyboard.is_pressed('down_arrow'):
 
-        player.dir.horizontal -= 0.2
+        player.dir.horizontal -= inputSpeed / 4
 
     if keyboard.is_pressed('&'):
         if not(renderDebug.get("wireframe")):
