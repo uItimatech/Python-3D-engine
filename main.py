@@ -84,7 +84,7 @@ last_clock_time = 0
 
 class FPS:
     value = int()
-    maxValue = 'none'     # Leave 'none' for benchmarking
+    maxValue = 'auto'     # Leave 'none' for benchmarking
     timer = 0
     counter = object
 
@@ -99,8 +99,9 @@ class FPS:
 
 renderDebug = dict({
     "wireframe": True,
-    "faceNormals": True,
+    "faceNormals": False,
     "faces": False,
+    "vertices": True,
     "orthographic": False,
     "cudaRendering": False
 })
@@ -111,7 +112,7 @@ if "NVIDIA" or "Nvidia" in EnumDisplayDevices().DeviceString:
 
 
 # Color index for debug face color
-color_index = [(255, 0, 0), (255, 0, 0), (0, 255, 0), (0, 255, 0), (0, 0, 255), (0, 0, 255), (128, 128, 0), (128, 128, 0), (128, 0, 128), (128, 0, 128), (0, 128, 128), (0, 128, 128)]
+color_index = [(255, 0, 0), (235, 0, 0), (0, 255, 0), (0, 235, 0), (0, 0, 255), (0, 0, 235), (128, 128, 0), (98, 128, 0), (128, 0, 128), (128, 0, 98), (0, 128, 128), (0, 98, 128)]
 #color_index = [randint(0,255) for i in range(12)]
 
 
@@ -205,7 +206,7 @@ def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *rotation):  # Add 
     cubeFaces.append(getTriangle(pointArray[2], pointArray[7], pointArray[6], 10))
     cubeFaces.append(getTriangle(pointArray[2], pointArray[3], pointArray[7], 11))
 
-    return cubeFaces
+    return (cubeFaces, pointArray)
 
 
 
@@ -256,9 +257,10 @@ def getPoint(x, y, z):
         pointX = (point_2d[0][0] * 10) #- window.width/2
         pointY = (point_2d[1][0] * 10) #- window.height/2
 
+
     point = Point(pointX, pointY)
 
-    distance = sqrt((dx)**2 + (dy)**2 + (dz)**2)
+    #distance = sqrt((dx)**2 + (dy)**2 + (dz)**2)
 
     return ((point, x, y, z), distance, dirX, dirY)
 
@@ -330,24 +332,41 @@ def render():
     # Clears window
     clear()
 
-    # Querry element faces to be sorted by distance and rendered
+    # Querry element faces and vertices to be sorted by distance and rendered
     faceArray = []
+    Vertices = []
 
-    faceArray.append(drawCube(50, 0, 0, 50, 50, 50))
-    faceArray.append(drawCube(50, 0, 50, 50, 50, 50))
-    faceArray.append(drawCube(50, 50, 50, 50, 50, 50))
+    faceArray.append(drawCube(50, 0, 0, 50, 50, 50)[0])
+    faceArray.append(drawCube(50, 0, 50, 50, 50, 50)[0])
+    faceArray.append(drawCube(50, 50, 50, 50, 50, 50)[0])
+
+    Vertices.append(drawCube(50, 0, 0, 50, 50, 50)[1])
+    Vertices.append(drawCube(50, 0, 50, 50, 50, 50)[1])
+    Vertices.append(drawCube(50, 50, 50, 50, 50, 50)[1])
 
     faceArray = [currentFace for currentFaces in range(len(faceArray)) for currentFace in faceArray[currentFaces]]
 
+    Vertices = [currentVertice for currentVertices in range(len(Vertices)) for currentVertice in Vertices[currentVertices]]
 
     def distanceKey(face):
         return face[1]
 
     faceArray.sort(key=distanceKey,reverse=True)
+    Vertices.sort(key=distanceKey,reverse=True)
+
+    for currentVertice in Vertices:
+        if renderDebug.get("vertices") == True:
+            currentVertice = Circle(currentVertice[0], log(currentVertice[1]/1.5)*2)
+            currentVertice.setFill(color_rgb(255, 0, 0))
+            currentVertice.draw(window)
 
     for currentFace in faceArray:
         if renderDebug.get("faces") == True or renderDebug.get("wireframe") == True: 
             currentFace[0].draw(window)
+
+
+
+
 
 
     origin = Point(0, 0)
@@ -456,36 +475,46 @@ while True:
 
         player.dir.horizontal -= inputSpeed / 4
 
+
+
     if keyboard.is_pressed('&'):
-        if not(renderDebug.get("wireframe")):
-            renderDebug["wireframe"] = True
+        if not(renderDebug.get("vertices")):
+            renderDebug["vertices"] = True
         else:
-            renderDebug["wireframe"] = False
+            renderDebug["vertices"] = False
         while keyboard.is_pressed('&'):
             sleep(0.1)
 
     if keyboard.is_pressed('é'):
-        if not(renderDebug.get("faces")):
-            renderDebug["faces"] = True
+        if not(renderDebug.get("wireframe")):
+            renderDebug["wireframe"] = True
         else:
-            renderDebug["faces"] = False
+            renderDebug["wireframe"] = False
         while keyboard.is_pressed('é'):
             sleep(0.1)
 
     if keyboard.is_pressed('"'):
-        if not(renderDebug.get("faceNormals")):
-            renderDebug["faceNormals"] = True
+        if not(renderDebug.get("faces")):
+            renderDebug["faces"] = True
         else:
-            renderDebug["faceNormals"] = False
+            renderDebug["faces"] = False
         while keyboard.is_pressed('"'):
             sleep(0.1)
 
     if keyboard.is_pressed("'"):
+        if not(renderDebug.get("faceNormals")):
+            renderDebug["faceNormals"] = True
+        else:
+            renderDebug["faceNormals"] = False
+        while keyboard.is_pressed("'"):
+            sleep(0.1)
+
+    if keyboard.is_pressed("("):
         if not(renderDebug.get("orthographic")):
             renderDebug["orthographic"] = True
         else:
             renderDebug["orthographic"] = False
-        while keyboard.is_pressed("'"):
+        while keyboard.is_pressed("("):
             sleep(0.1)
 
     if player.dir.vertical < 0:
