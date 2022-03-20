@@ -311,7 +311,7 @@ def getTriangle(point1, point2, point3, id):
 
 
 
-
+@jit
 def clear():
     # Undraws all faces for next frame
     for item in window.items[:]:
