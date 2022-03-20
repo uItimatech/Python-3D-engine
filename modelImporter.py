@@ -1,0 +1,2 @@
+def obj():
+    return 'null'

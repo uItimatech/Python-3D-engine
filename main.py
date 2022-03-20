@@ -14,11 +14,11 @@ Version: Beta 0.1.5
 
 
 
-# ------------ Import libraries --------------
+# ------------ Import modules --------------
 
+# Default modules
 from time import time, sleep
 from os import system
-from turtle import window_width
 from win32api import EnumDisplayDevices, EnumDisplaySettings
 
 from random import randint
@@ -26,7 +26,12 @@ from math import *
 
 
 
-# Downloads the missing required modules 
+# Custom modules
+from modelImporter import obj
+
+
+
+# Downloads the missing required modules
 
 # 2D graphics module
 try:
@@ -326,7 +331,6 @@ def getTriangle(point1, point2, point3, id):
 
 
 # Clears the window
-@jit 
 def clear():
     # Undraws all faces for next frame
     for item in window.items[:]:
