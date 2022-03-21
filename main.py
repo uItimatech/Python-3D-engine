@@ -296,7 +296,6 @@ def getTriangle(point1, point2, point3, id):
     gravityCenterZ = (point1[3]+point2[3]+point3[3])/3
 
     gravityCenter = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[0][0]
-    gravityCenter.setFill("red")
 
     distance = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[0][4]
 
@@ -325,6 +324,8 @@ def getTriangle(point1, point2, point3, id):
     if renderDebug.get("faceNormals") == True: 
         normalVector.setFill("orange")
         normalVector.draw(window)
+        gravityCenter = Circle(gravityCenter, 1/log(distance))
+        gravityCenter.setFill("red")
         gravityCenter.draw(window)
 
     return (Triangle, distance) 
@@ -357,6 +358,7 @@ def render():
             setCube(50, 0, 0, 50, 50, 50),
             setCube(50, 50, 50, 100, 50, 50),
             setCube(50, 0, 50, 50, 50, 50),
+            setCube(50, 0, -100, 0, 50, 37),
             ]
 
 
@@ -404,7 +406,7 @@ def render():
 
     for currentVertice in elementVertices:
         if renderDebug.get("vertices") == True:
-            currentVertice = Circle(currentVertice[0], log(currentVertice[1])*2)
+            currentVertice = Circle(currentVertice[0], 150/log(currentVertice[1]/(10**8)))
             currentVertice.setFill('orange')
             currentVertice.setOutline('')
             currentVertice.draw(window)
