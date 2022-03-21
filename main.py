@@ -17,6 +17,7 @@ Version: Beta 0.1.5
 # ------------ Import modules --------------
 
 # Default modules
+from dis import dis
 from time import time, sleep
 from os import system
 from win32api import EnumDisplayDevices, EnumDisplaySettings
@@ -257,7 +258,7 @@ def getPoint(x, y, z): # Will later support multiple cameras
     if dirX < 0:
         dirX += 360'''
 
-    #print(dirX, dirY)
+
 
     if renderDebug.get("orthographic") == False:
 
@@ -293,8 +294,6 @@ def getTriangle(point1, point2, point3, id):
     gravityCenterX = (point1[1]+point2[1]+point3[1])/3
     gravityCenterY = (point1[2]+point2[2]+point3[2])/3
     gravityCenterZ = (point1[3]+point2[3]+point3[3])/3
-
-    print("TEST:"+str(point1[1]))
 
     gravityCenter = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[0][0]
     gravityCenter.setFill("red")
@@ -348,6 +347,9 @@ resetCoords()
 # ----------------- Render -------------------
 
 def render():
+    
+    # Clears last frame
+    clear()
 
     # --------------- Element list ---------------
 
@@ -366,9 +368,6 @@ def render():
     clock_time = time.time() - start_clock_time
     FPS.timer = clock_time - last_clock_time
     FPS.value += 1
-
-    # Clears window
-    clear()
 
 
 
@@ -391,13 +390,15 @@ def render():
     elementVertices = [(currentVertice[0],currentVertice[4]) for currentVertice in elementVertices]
 
 
+
+    # Allows to sort by the farthest distance
     def distanceKey(face):
         return face[1]
 
+
+    # Sorts arrays by the farthest distance elements
     elementFaces.sort(key=distanceKey,reverse=True)
     elementVertices.sort(key=distanceKey,reverse=True)
-
-    #print("\nTEST4:"+str(elementFaces[0][1]))
 
 
 
