@@ -27,7 +27,7 @@ from math import *
 
 
 # Custom modules
-from modelImporter import obj
+from model_import import obj
 
 
 
@@ -63,7 +63,7 @@ except ImportError:
 
 # ----------- Initialize variables -----------
 
-class player:
+class camera:
 
     x = float
     y = float
@@ -112,11 +112,11 @@ class FPS:
 renderDebug = dict({
     "wireframe": True,
     "faceNormals": False,
-    "faces": False,
+    "faces": True,
     "vertices": True,
     "orthographic": False,
     "cudaRendering": False,
-    "coordinates": False,
+    "coordinates": True,
     "FPSCounter": True
 })
 
@@ -154,14 +154,14 @@ window.setCoords(-window.width, -window.height, window.width, window.height)
 # Resets camera position
 def resetCoords():
 
-    global player
+    global camera
 
-    player.x = -105
-    player.y = 65
-    player.z = -15
+    camera.x = -105
+    camera.y = 65
+    camera.z = -15
 
-    player.dir.vertical = 0
-    player.dir.horizontal = 0
+    camera.dir.vertical = 0
+    camera.dir.horizontal = 0
 
 
 
@@ -196,8 +196,8 @@ def multiplyMatrix(matrix1, matrix2):
 
 
 
-# Returns an array of points and faces representing a cube
-def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *Rotation):  # Add x, y, z position, size and rotation parameters
+# Returns an array of points and faces corresponding to a cube
+def setCube(originX, originY, originZ, Xsize, Ysize, Zsize, *Rotation):  # Add x, y, z position, size and rotation parameters
 
     pointArray = []
 
@@ -232,9 +232,9 @@ def drawCube(originX, originY, originZ, Xsize, Ysize, Zsize, *Rotation):  # Add 
 # Returns the projection of a 3D point in space onto the camera plane
 def getPoint(x, y, z): # Will later support multiple cameras
 
-    dx = x - player.x
-    dy = y - player.y
-    dz = z - player.z
+    dx = x - camera.x
+    dy = y - camera.y
+    dz = z - camera.z
 
     dt = sqrt(dy**2 + dz**2)
     distance = sqrt(dt**2 + dx**2)
@@ -246,11 +246,11 @@ def getPoint(x, y, z): # Will later support multiple cameras
         dirX = 0
         dirY = 0
 
-    #dirX = (dirX - player.dir.vertical +1)*180
-    #dirY = (dirY - player.dir.horizontal +1)*180
+    #dirX = (dirX - camera.dir.vertical +1)*180
+    #dirY = (dirY - camera.dir.horizontal +1)*180
 
-    dirX = (dirX - player.dir.vertical)
-    dirY = (dirY - player.dir.horizontal)
+    dirX = (dirX - camera.dir.vertical)
+    dirY = (dirY - camera.dir.horizontal)
 
     '''if dirX > 360:
         dirX -= 360
@@ -281,7 +281,7 @@ def getPoint(x, y, z): # Will later support multiple cameras
 
     #distance = sqrt((dx)**2 + (dy)**2 + (dz)**2)
 
-    return ((point, x, y, z), distance, dirX, dirY)
+    return ((point, x, y, z, distance), dirX, dirY)
 
 
 
@@ -294,10 +294,12 @@ def getTriangle(point1, point2, point3, id):
     gravityCenterY = (point1[2]+point2[2]+point3[2])/3
     gravityCenterZ = (point1[3]+point2[3]+point3[3])/3
 
+    print("TEST:"+str(point1[1]))
+
     gravityCenter = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[0][0]
     gravityCenter.setFill("red")
 
-    distance = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[1]
+    distance = getPoint(gravityCenterX, gravityCenterY, gravityCenterZ)[0][4]
 
     dirVector1 = [point2[1] - point1[1], point2[2] - point1[2], point2[3] - point1[3]]
     dirVector2 = [point3[1] - point1[1], point3[2] - point1[2], point3[3] - point1[3]]
@@ -330,16 +332,33 @@ def getTriangle(point1, point2, point3, id):
 
 
 
-# Clears the window
+# ---------------- Unrenderer ----------------
+
 def clear():
     # Undraws all faces for next frame
     for item in window.items[:]:
         item.undraw()
 
+# Resets camera position
+resetCoords()
 
 
-# Renders visible elements
+
+
+# ----------------- Render -------------------
+
 def render():
+
+    # --------------- Element list ---------------
+
+    elementList = [
+            setCube(50, 0, 0, 50, 50, 50),
+            setCube(50, 50, 50, 100, 50, 50),
+            setCube(50, 0, 50, 50, 50, 50),
+            ]
+
+
+
 
     # FPS clock
     global FPS, last_clock_time
@@ -351,35 +370,45 @@ def render():
     # Clears window
     clear()
 
+
+
     # Querry element faces and vertices to be sorted by distance and rendered
-    faceArray = []
-    Vertices = []
+    elementFaces = []
+    elementVertices = []
 
-    faceArray.append(drawCube(50, 0, 0, 50, 50, 50)[0])
-    faceArray.append(drawCube(50, 0, 50, 50, 50, 50)[0])
-    faceArray.append(drawCube(50, 50, 50, 50, 50, 50)[0])
+    for currentElement in elementList:
 
-    Vertices.append(drawCube(50, 0, 0, 50, 50, 50)[1])
-    Vertices.append(drawCube(50, 0, 50, 50, 50, 50)[1])
-    Vertices.append(drawCube(50, 50, 50, 50, 50, 50)[1])
+        # Gets all faces
+        for currentItem in currentElement[0]:
+            elementFaces.append(currentItem)
 
-    faceArray = [currentFace for currentFaces in range(len(faceArray)) for currentFace in faceArray[currentFaces]]
+        # Gets all vertices
+        for currentItem in currentElement[1]:
+            elementVertices.append(currentItem)
 
-    Vertices = [currentVertice for currentVertices in range(len(Vertices)) for currentVertice in Vertices[currentVertices]]
+
+    # Removes unecessary vertices positions
+    elementVertices = [(currentVertice[0],currentVertice[4]) for currentVertice in elementVertices]
+
 
     def distanceKey(face):
         return face[1]
 
-    faceArray.sort(key=distanceKey,reverse=True)
-    Vertices.sort(key=distanceKey,reverse=True)
+    elementFaces.sort(key=distanceKey,reverse=True)
+    elementVertices.sort(key=distanceKey,reverse=True)
 
-    for currentVertice in Vertices:
+    #print("\nTEST4:"+str(elementFaces[0][1]))
+
+
+
+    for currentVertice in elementVertices:
         if renderDebug.get("vertices") == True:
-            currentVertice = Circle(currentVertice[0], log(currentVertice[1]/1.5)*2)
-            currentVertice.setFill(color_rgb(255, 0, 0))
+            currentVertice = Circle(currentVertice[0], log(currentVertice[1])*2)
+            currentVertice.setFill('orange')
+            currentVertice.setOutline('')
             currentVertice.draw(window)
 
-    for currentFace in faceArray:
+    for currentFace in elementFaces:
         if renderDebug.get("faces") == True or renderDebug.get("wireframe") == True: 
             currentFace[0].draw(window)
 
@@ -390,7 +419,7 @@ def render():
     # Draws origin
     origin = Point(0, 0)
     origin = Circle(origin, 3)
-    origin.setFill(color_rgb(255, 0, 0))
+    origin.setFill('red')
     origin.draw(window)
 
 
@@ -414,25 +443,20 @@ def render():
 
     # Displays camera coordinates
     if renderDebug.get("coordinates") == True: 
-        infos = str("(" + str(round(player.x, 3)) + ";" +
-                    str(round(player.y, 3)) + ";" + str(round(player.z, 3)) + ")")
+        infos = str("(" + str(round(camera.x, 3)) + ";" +
+                    str(round(camera.y, 3)) + ";" + str(round(camera.z, 3)) + ")")
         posDisplay = Text(Point(0, -window.width+70), infos)
         posDisplay.draw(window)
 
-        infos = str("(" + str(player.dir.vertical) + ";" + str(player.dir.horizontal) + ")")
+        infos = str("(" + str(camera.dir.vertical) + ";" + str(camera.dir.horizontal) + ")")
         dirDisplay = Text(Point(0, (-window.width)+30), infos)
         dirDisplay.draw(window)
 
 
 
 
-# ------------ Render and keybinds -----------
+# ------------ Main loop and keybinds -----------
 
-# Resets camera position
-resetCoords()
-
-
-# Main loop
 while True:
 
     # Render frames
@@ -446,65 +470,64 @@ while True:
     inputSpeed = 1.0 / ((FPS.lastValue+0.01) / 120)
 
 
-
     # Keyboard inputs
-    '''if keyboard.is_pressed('s')f:
+    '''if keyboard.is_pressed('s'):
 
-        player.x = player.x - (sin(player.dir.vertical))/360
-        player.z = player.z - (cos(player.dir.vertical))/360
+        camera.x = camera.x - (sin(camera.dir.vertical))/360
+        camera.z = camera.z - (cos(camera.dir.vertical))/360
 
     if keyboard.is_pressed('z'):
 
-        player.x = player.x + (sin(player.dir.vertical))
-        player.z = player.z + (cos(player.dir.vertical))
+        camera.x = camera.x + (sin(camera.dir.vertical))
+        camera.z = camera.z + (cos(camera.dir.vertical))
 
     if keyboard.is_pressed('d'):
 
-        player.dir.vertical += 1
+        camera.dir.vertical += 1
 
     if keyboard.is_pressed('q'):
 
-        player.dir.vertical -= 1'''
+        camera.dir.vertical -= 1'''
     
     if keyboard.is_pressed('s'):
 
-        player.x -= inputSpeed
+        camera.x -= inputSpeed
 
     if keyboard.is_pressed('z'):
 
-        player.x += inputSpeed
+        camera.x += inputSpeed
 
     if keyboard.is_pressed('space'):
 
-        player.y += inputSpeed
+        camera.y += inputSpeed
 
     if keyboard.is_pressed('shift'):
 
-        player.y -= inputSpeed
+        camera.y -= inputSpeed
 
     if keyboard.is_pressed('d'):
 
-        player.z += inputSpeed
+        camera.z += inputSpeed
 
     if keyboard.is_pressed('q'):
 
-        player.z -= inputSpeed
+        camera.z -= inputSpeed
 
     if keyboard.is_pressed('left_arrow'):
 
-        player.dir.vertical -= inputSpeed / 4
+        camera.dir.vertical -= inputSpeed / 4
 
     if keyboard.is_pressed('right_arrow'):
 
-        player.dir.vertical += inputSpeed / 4
+        camera.dir.vertical += inputSpeed / 4
 
     if keyboard.is_pressed('up_arrow'):
 
-        player.dir.horizontal += inputSpeed / 4
+        camera.dir.horizontal += inputSpeed / 4
 
     if keyboard.is_pressed('down_arrow'):
 
-        player.dir.horizontal -= inputSpeed / 4
+        camera.dir.horizontal -= inputSpeed / 4
 
 
 
@@ -548,11 +571,11 @@ while True:
         while keyboard.is_pressed("("):
             sleep(0.1)
 
-    if player.dir.vertical < 0:
-        player.dir.vertical += 360
+    if camera.dir.vertical < 0:
+        camera.dir.vertical += 360
 
-    if player.dir.vertical > 360:
-        player.dir.vertical -= 360
+    if camera.dir.vertical > 360:
+        camera.dir.vertical -= 360
 
     if keyboard.is_pressed('esc'):
         window.close()
